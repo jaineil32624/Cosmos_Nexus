@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cosmos Explorer — Space, Time & the Universe</title>
+<style>
+  :root {
+    --deep-space: #03060f;
+    --star-gold: #f5c842;
+    --pulsar-cyan: #00d4ff;
+    --nebula-purple: #7c3aed;
+    --nova-orange: #ff6b35;
+    --soft-white: #e8edf5;
+    --dim-white: #8899bb;
+    --panel-bg: rgba(8,16,42,0.78);
+    --border: rgba(0,212,255,0.18);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+
+  body {
+    background: var(--deep-space);
+    color: var(--soft-white);
+    font-family: 'Georgia', serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── CUSTOM CURSOR ── */
+  #cursor-dot {
+    position: fixed;
+    width: 10px; height: 10px;
+    background: var(--pulsar-cyan);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 99999;
+    transform: translate(-50%,-50%);
+    box-shadow: 0 0 12px 4px rgba(0,212,255,0.6), 0 0 30px 10px rgba(0,212,255,0.2);
+    transition: width 0.15s, height 0.15s, background 0.15s;
+    mix-blend-mode: screen;
+  }
+  #cursor-ring {
+    position: fixed;
+    width: 32px; height: 32px;
+    border: 1.5px solid rgba(0,212,255,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 99998;
+    transform: translate(-50%,-50%);
+    transition: width 0.2s, height 0.2s, border-color 0.2s;
+  }
+  body:has(canvas:hover) #cursor-dot { background: var(--star-gold); width:14px; height:14px; }
+
+  /* ── CANVAS LAYERS ── */
+  #starfield {
+    position: fixed; top:0; left:0;
+    width:100%; height:100%;
+    z-index:0; pointer-events:none;
+  }
+  #cursor-canvas {
+    position: fixed; top:0; left:0;
+    width:100%; height:100%;
+    z-index:2; pointer-events:none;
+  }
+
+  /* ── NEBULA SECTION BLOBS ── */
+  section { position:relative; overflow:hidden; }
+  section::before {
+    content:'';
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse 60% 40% at 80% 50%, rgba(124,58,237,0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 40% 60% at 20% 70%, rgba(0,212,255,0.06) 0%, transparent 70%);
+    pointer-events:none;
+    z-index:0;
+  }
+  #hero::before {
+    background: radial-gradient(ellipse 70% 50% at 50% 40%, rgba(0,212,255,0.07) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 60% at 30% 80%, rgba(124,58,237,0.08) 0%, transparent 70%);
+  }
+  #spacetime::before { background: radial-gradient(ellipse 80% 60% at 10% 30%, rgba(0,212,255,0.1) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 90% 70%, rgba(79,198,255,0.07) 0%, transparent 60%); }
+  #gravity::before   { background: radial-gradient(ellipse 60% 50% at 85% 20%, rgba(124,58,237,0.1) 0%, transparent 60%), radial-gradient(ellipse 40% 60% at 15% 60%, rgba(255,107,53,0.06) 0%, transparent 60%); }
+  #solar::before     { background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(245,200,66,0.05) 0%, transparent 60%); }
+  #stellar::before   { background: radial-gradient(ellipse 60% 50% at 20% 30%, rgba(255,107,53,0.08) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 80% 70%, rgba(124,58,237,0.06) 0%, transparent 60%); }
+  #blackhole::before { background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0,0,0,0.5) 0%, transparent 70%); }
+  #cosmology::before { background: radial-gradient(ellipse 60% 50% at 70% 30%, rgba(0,212,255,0.07) 0%, transparent 60%), radial-gradient(ellipse 50% 60% at 20% 70%, rgba(124,58,237,0.08) 0%, transparent 60%); }
+  #equations::before { background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(245,200,66,0.04) 0%, transparent 70%); }
+
+  /* ── MUSIC BAR ── */
+  #music-bar {
+    position:fixed; top:0; left:0; right:0;
+    z-index:1000;
+    display:flex; align-items:center; gap:14px;
+    padding:8px 28px;
+    background: rgba(3,5,12,0.92);
+    border-bottom:1px solid var(--border);
+    backdrop-filter:blur(16px);
+  }
+  #music-bar .brand {
+    font-size:0.85rem; letter-spacing:0.22em;
+    color:var(--pulsar-cyan); text-transform:uppercase;
+    font-family:'Courier New',monospace; flex:1;
+    text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  }
+
+  /* EQ visualizer */
+  #eq-bars {
+    display:flex; align-items:flex-end;
+    gap:2px; height:20px;
+    opacity:0; transition:opacity 0.4s;
+  }
+  #eq-bars.playing { opacity:1; }
+  .eq-bar {
+    width:3px; border-radius:2px 2px 0 0;
+    background:var(--pulsar-cyan);
+    animation:eq-bounce 0.5s ease-in-out infinite alternate;
+  }
+  .eq-bar:nth-child(1){height:6px;animation-delay:0s;}
+  .eq-bar:nth-child(2){height:14px;animation-delay:0.07s;}
+  .eq-bar:nth-child(3){height:10px;animation-delay:0.14s;}
+  .eq-bar:nth-child(4){height:18px;animation-delay:0.21s;}
+  .eq-bar:nth-child(5){height:8px;animation-delay:0.28s;}
+  .eq-bar:nth-child(6){height:16px;animation-delay:0.35s;}
+  .eq-bar:nth-child(7){height:12px;animation-delay:0.42s;}
+  @keyframes eq-bounce {
+    from { transform:scaleY(0.3); opacity:0.6; }
+    to   { transform:scaleY(1.0); opacity:1; }
+  }
+
+  #music-label {
+    font-size:0.78rem; color:var(--dim-white);
+    font-family:'Courier New',monospace; letter-spacing:0.08em;
+  }
+  #mute-btn {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(0,212,255,0.08);
+    border:1px solid var(--border); border-radius:30px;
+    padding:6px 18px; cursor:pointer;
+    color:var(--pulsar-cyan);
+    font-family:'Courier New',monospace;
+    font-size:0.78rem; letter-spacing:0.1em;
+    transition:all 0.3s; position:relative; overflow:hidden;
+  }
+  #mute-btn::after {
+    content:''; position:absolute; inset:0; border-radius:30px;
+    background:radial-gradient(circle at var(--bx,50%) var(--by,50%), rgba(0,212,255,0.25) 0%, transparent 60%);
+    opacity:0; transition:opacity 0.3s;
+  }
+  #mute-btn:hover::after { opacity:1; }
+  #mute-btn:hover { border-color:var(--pulsar-cyan); box-shadow:0 0 20px rgba(0,212,255,0.3); }
+
+  /* ── NAV ── */
+  nav {
+    position:fixed; top:44px; left:0; right:0;
+    z-index:999; display:flex; justify-content:center;
+    gap:4px; padding:8px 20px;
+    background:rgba(3,5,12,0.78);
+    border-bottom:1px solid var(--border);
+    backdrop-filter:blur(10px); flex-wrap:wrap;
+  }
+  nav a {
+    color:var(--dim-white); text-decoration:none;
+    font-size:0.76rem; letter-spacing:0.12em;
+    text-transform:uppercase; font-family:'Courier New',monospace;
+    padding:5px 14px; border-radius:20px;
+    border:1px solid transparent; transition:all 0.3s;
+    position:relative; cursor:pointer;
+    white-space:nowrap;
+  }
+  nav a::before {
+    content:''; position:absolute; bottom:3px; left:50%; right:50%;
+    height:1px; background:var(--pulsar-cyan);
+    transition:left 0.3s, right 0.3s;
+    box-shadow:0 0 6px var(--pulsar-cyan);
+  }
+  nav a:hover::before { left:14px; right:14px; }
+  nav a:hover { color:var(--pulsar-cyan); border-color:var(--border); background:rgba(0,212,255,0.07); }
+
+  /* ── LAYOUT ── */
+  section {
+    z-index:1; min-height:100vh;
+    padding:130px 40px 80px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .section-inner { max-width:1000px; width:100%; position:relative; z-index:1; }
+
+  .section-tag {
+    font-family:'Courier New',monospace; font-size:0.72rem;
+    letter-spacing:0.3em; color:var(--pulsar-cyan);
+    text-transform:uppercase; margin-bottom:14px; opacity:0.8;
+  }
+  h1 {
+    font-size:clamp(2.4rem,6vw,4.2rem); line-height:1.1;
+    font-weight:400; margin-bottom:24px;
+    background:linear-gradient(135deg, #fff 30%, var(--pulsar-cyan));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+    filter: drop-shadow(0 0 30px rgba(0,212,255,0.3));
+  }
+  h2 {
+    font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:400; margin-bottom:20px;
+    background:linear-gradient(120deg, var(--soft-white), var(--pulsar-cyan));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+    filter: drop-shadow(0 0 20px rgba(0,212,255,0.25));
+  }
+  h3 {
+    font-size:1.1rem; font-weight:600; color:var(--star-gold);
+    margin-bottom:10px; letter-spacing:0.05em;
+    text-shadow:0 0 14px rgba(245,200,66,0.4);
+  }
+  p { color:#c0cce8; line-height:1.82; font-size:1.02rem; margin-bottom:18px; }
+  .lead { font-size:1.18rem; color:var(--soft-white); line-height:1.75; margin-bottom:30px; }
+
+  /* ── PANELS ── */
+  .panel {
+    background:var(--panel-bg);
+    border:1px solid var(--border); border-radius:16px;
+    padding:28px 32px; margin:20px 0;
+    backdrop-filter:blur(8px);
+    transition:transform 0.15s ease, box-shadow 0.3s ease, border-color 0.3s;
+    transform-style:preserve-3d;
+    will-change:transform;
+  }
+  .panel:hover {
+    border-color:rgba(0,212,255,0.4);
+    box-shadow:0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,212,255,0.1), inset 0 0 20px rgba(0,212,255,0.03);
+  }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin:24px 0; }
+  @media(max-width:700px){ .grid-2{ grid-template-columns:1fr; } }
+  .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin:24px 0; }
+  @media(max-width:800px){ .grid-3{ grid-template-columns:1fr; } }
+
+  .fact-chip {
+    display:inline-block;
+    background:rgba(124,58,237,0.18); border:1px solid rgba(124,58,237,0.4);
+    border-radius:8px; padding:6px 14px; font-size:0.82rem; color:#c4a7f7;
+    font-family:'Courier New',monospace; margin:4px 4px 4px 0;
+    transition:all 0.25s; cursor:default;
+  }
+  .fact-chip:hover {
+    background:rgba(124,58,237,0.32); border-color:rgba(124,58,237,0.8);
+    color:#e8d9ff; transform:translateY(-2px);
+    box-shadow:0 4px 16px rgba(124,58,237,0.3);
+  }
+
+  /* ── HERO ── */
+  #hero { justify-content:center; text-align:center; min-height:100vh; }
+  .hero-subtitle {
+    font-size:1.12rem; color:var(--dim-white); letter-spacing:0.08em;
+    margin-bottom:48px; font-family:'Courier New',monospace;
+  }
+  .scroll-cue {
+    margin-top:50px; color:var(--dim-white); font-size:0.8rem;
+    letter-spacing:0.2em; text-transform:uppercase;
+    font-family:'Courier New',monospace; animation:bob 2.2s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px)} }
+
+  /* hero stat cards with hover glow */
+  .stat-card {
+    background:var(--panel-bg); border:1px solid var(--border);
+    border-radius:14px; padding:20px 16px; text-align:center;
+    transition:all 0.3s; cursor:default;
+    transform-style:preserve-3d;
+  }
+  .stat-card:hover {
+    border-color:rgba(0,212,255,0.5);
+    box-shadow:0 0 30px rgba(0,212,255,0.15), 0 10px 40px rgba(0,0,0,0.4);
+    transform:translateY(-6px) scale(1.02);
+  }
+  .stat-card .icon { font-size:2.2rem; margin-bottom:10px; display:block; transition:transform 0.3s; }
+  .stat-card:hover .icon { transform:scale(1.15) rotate(5deg); }
+
+  /* ── CANVASES ── */
+  #spacetime-canvas, #solar-canvas, #stellar-canvas,
+  #blackhole-canvas, #cosmic-web-canvas {
+    width:100%; display:block; border-radius:14px;
+    border:1px solid var(--border); margin:24px 0;
+    transition:border-color 0.3s, box-shadow 0.3s;
+  }
+  #spacetime-canvas { height:340px; background:rgba(3,6,20,0.6); cursor:none; }
+  #solar-canvas     { height:380px; background:rgba(3,6,20,0.6); }
+  #stellar-canvas   { height:220px; background:rgba(3,6,20,0.6); }
+  #blackhole-canvas { height:320px; background:#000; cursor:none; }
+  #cosmic-web-canvas{ height:300px; background:#000; }
+
+  #spacetime-canvas:hover, #solar-canvas:hover,
+  #stellar-canvas:hover, #blackhole-canvas:hover,
+  #cosmic-web-canvas:hover {
+    border-color:rgba(0,212,255,0.45);
+    box-shadow:0 0 30px rgba(0,212,255,0.1);
+  }
+
+  /* ── SPEED SLIDER ── */
+  .speed-row {
+    display:flex; align-items:center; gap:14px; margin-top:12px;
+    font-family:'Courier New',monospace; font-size:0.82rem; color:var(--dim-white);
+  }
+  .speed-row input[type=range] { flex:1; accent-color:var(--pulsar-cyan); cursor:pointer; }
+
+  /* ── STAGE BUTTONS ── */
+  .stage-btns { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+  .stage-btn {
+    padding:8px 18px; border-radius:20px;
+    border:1px solid var(--border); background:transparent;
+    color:var(--dim-white); font-family:'Courier New',monospace;
+    font-size:0.78rem; letter-spacing:0.08em;
+    cursor:pointer; transition:all 0.25s; position:relative; overflow:hidden;
+  }
+  .stage-btn::before {
+    content:''; position:absolute; inset:0; background:rgba(0,212,255,0.15);
+    transform:scaleX(0); transform-origin:left;
+    transition:transform 0.3s;
+  }
+  .stage-btn:hover::before, .stage-btn.active::before { transform:scaleX(1); }
+  .stage-btn:hover, .stage-btn.active {
+    border-color:var(--pulsar-cyan); color:var(--pulsar-cyan);
+    box-shadow:0 0 14px rgba(0,212,255,0.2);
+  }
+
+  /* ── TIMELINE ── */
+  .timeline-track { position:relative; margin:36px 0 20px; }
+  .timeline-line {
+    height:3px;
+    background:linear-gradient(90deg,#7c3aed,#00d4ff,#f5c842,#ff6b35);
+    border-radius:4px;
+    box-shadow:0 0 12px rgba(0,212,255,0.3);
+  }
+  .timeline-nodes { display:flex; justify-content:space-between; margin-top:10px; }
+  .t-node { display:flex; flex-direction:column; align-items:center; cursor:pointer; flex:1; }
+  .t-dot {
+    width:12px; height:12px; border-radius:50%;
+    border:2px solid var(--deep-space);
+    margin-bottom:8px; margin-top:-8px;
+    transition:transform 0.25s, box-shadow 0.25s;
+  }
+  .t-node:hover .t-dot { transform:scale(1.8); }
+  .t-label {
+    font-size:0.68rem; font-family:'Courier New',monospace;
+    color:var(--dim-white); text-align:center;
+    letter-spacing:0.04em; line-height:1.3; max-width:80px;
+    transition:color 0.2s;
+  }
+  .t-node:hover .t-label { color:var(--soft-white); }
+  #timeline-detail { min-height:100px; transition:all 0.4s; }
+
+  /* ── EQ CARDS ── */
+  .eq-card {
+    background:rgba(0,0,0,0.35); border:1px solid var(--border);
+    border-radius:12px; padding:22px 24px; text-align:center;
+    transition:all 0.3s; cursor:default;
+    transform-style:preserve-3d;
+  }
+  .eq-card:hover {
+    background:rgba(10,20,50,0.6);
+    border-color:rgba(245,200,66,0.5);
+    transform:translateY(-8px) scale(1.02);
+    box-shadow:0 20px 50px rgba(0,0,0,0.5), 0 0 30px rgba(245,200,66,0.12);
+  }
+  .eq { font-size:1.5rem; color:var(--star-gold); font-family:'Georgia',serif; margin:10px 0; letter-spacing:0.05em; transition:text-shadow 0.3s; }
+  .eq-card:hover .eq { text-shadow:0 0 20px rgba(245,200,66,0.7); }
+  .eq-name { font-size:0.75rem; color:var(--pulsar-cyan); font-family:'Courier New',monospace; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px; }
+  .eq-desc { font-size:0.88rem; color:var(--dim-white); line-height:1.6; margin:0; }
+
+  /* ── FOOTER ── */
+  footer {
+    position:relative; z-index:1; text-align:center;
+    padding:40px 20px; border-top:1px solid var(--border);
+    font-family:'Courier New',monospace; font-size:0.75rem;
+    color:var(--dim-white); letter-spacing:0.12em; opacity:0.6;
+  }
+
+  /* ── ESCAPE VEL BARS ── */
+  .vel-bar-wrap { flex:1; min-width:120px; }
+  .vel-bar-track { background:rgba(255,255,255,0.06); border-radius:4px; height:8px; overflow:hidden; }
+  .vel-bar-fill { height:100%; border-radius:4px; transition:width 1.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s; }
+  .vel-bar-wrap:hover .vel-bar-fill { box-shadow:0 0 10px currentColor; }
+
+  /* ── SCROLL FADE ── */
+  .fade-up { opacity:0; transform:translateY(40px); transition:opacity 0.8s ease, transform 0.8s ease; }
+  .fade-up.visible { opacity:1; transform:none; }
+
+  /* ── RIPPLE ── */
+  .ripple-ring {
+    position:fixed; border-radius:50%;
+    border:2px solid rgba(0,212,255,0.6);
+    pointer-events:none; z-index:9999;
+    animation:ripple-out 0.6s ease-out forwards;
+  }
+  @keyframes ripple-out {
+    from { width:10px; height:10px; opacity:1; }
+    to   { width:80px; height:80px; opacity:0; }
+  }
+
+  section:not(#hero) { border-top:1px solid rgba(0,212,255,0.06); }
+
+  /* ── FLOATING NEBULA ORBS ── */
+  .orb {
+    position:fixed; border-radius:50%;
+    pointer-events:none; z-index:0; filter:blur(60px);
+    animation:orb-drift linear infinite;
+  }
+  @keyframes orb-drift {
+    0%   { transform:translate(0,0) scale(1); opacity:0; }
+    10%  { opacity:1; }
+    90%  { opacity:0.7; }
+    100% { transform:translate(var(--dx),var(--dy)) scale(var(--ds)); opacity:0; }
+  }
+
+  /* ── AURORA WAVE ── */
+  @keyframes aurora {
+    0%,100% { background-position:0% 50%; opacity:0.06; }
+    50%     { background-position:100% 50%; opacity:0.12; }
+  }
+  .aurora-band {
+    position:fixed; left:0; right:0; height:180px;
+    background:linear-gradient(90deg,
+      transparent, rgba(0,212,255,0.15), rgba(124,58,237,0.2),
+      rgba(0,255,160,0.12), rgba(0,212,255,0.1), transparent);
+    background-size:300% 100%;
+    animation:aurora 8s ease-in-out infinite;
+    pointer-events:none; z-index:0; filter:blur(20px);
+  }
+
+  /* ── PULSE GLOW ON HEADINGS ── */
+  @keyframes pulse-glow {
+    0%,100% { filter:drop-shadow(0 0 20px rgba(0,212,255,0.25)); }
+    50%     { filter:drop-shadow(0 0 40px rgba(0,212,255,0.55)); }
+  }
+  h1 { animation: pulse-glow 4s ease-in-out infinite; }
+
+  /* ── SPARKLE FLOAT ── */
+  @keyframes sparkle-float {
+    0%   { transform:translateY(0) rotate(0deg); opacity:0; }
+    20%  { opacity:1; }
+    80%  { opacity:0.8; }
+    100% { transform:translateY(-120px) rotate(360deg); opacity:0; }
+  }
+  .sparkle-el {
+    position:absolute; pointer-events:none; z-index:0;
+    font-size:1rem; animation:sparkle-float linear infinite;
+  }
+
+  /* ── ANIMATED SECTION GRADIENT ── */
+  @keyframes nebula-shift {
+    0%,100% { background-position:0% 0%; }
+    33%     { background-position:100% 50%; }
+    66%     { background-position:50% 100%; }
+  }
+
+  /* ── STAT CARD ENTRY ANIMATION ── */
+  @keyframes card-enter {
+    from { opacity:0; transform:translateY(20px) scale(0.96); }
+    to   { opacity:1; transform:none; }
+  }
+  .stat-card { animation:card-enter 0.6s ease both; }
+  .stat-card:nth-child(1){ animation-delay:0.1s; }
+  .stat-card:nth-child(2){ animation-delay:0.22s; }
+  .stat-card:nth-child(3){ animation-delay:0.34s; }
+
+  /* ── SECTION TAG BLINK ── */
+  @keyframes tag-blink {
+    0%,100%{ opacity:0.8; } 50%{ opacity:1; text-shadow:0 0 10px var(--pulsar-cyan); }
+  }
+  .section-tag { animation:tag-blink 3s ease-in-out infinite; }
+
+  /* ── FACT CHIP ENTRY ── */
+  @keyframes chip-pop {
+    from { transform:scale(0.8); opacity:0; }
+    to   { transform:scale(1); opacity:1; }
+  }
+  .fact-chip { animation:chip-pop 0.4s ease both; }
+
+  /* ── TIMELINE LINE GLOW PULSE ── */
+  @keyframes line-pulse {
+    0%,100%{ box-shadow:0 0 8px rgba(0,212,255,0.2); }
+    50%    { box-shadow:0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(124,58,237,0.3); }
+  }
+  .timeline-line { animation:line-pulse 3s ease-in-out infinite; }
+
+  /* ── EQ CARD SHIMMER ── */
+  @keyframes eq-shimmer {
+    0%   { background-position:-200% 0; }
+    100% { background-position:200% 0; }
+  }
+  .eq-card::before {
+    content:''; position:absolute; inset:0; border-radius:12px;
+    background:linear-gradient(90deg, transparent 0%, rgba(245,200,66,0.04) 50%, transparent 100%);
+    background-size:200% 100%;
+    animation:eq-shimmer 4s linear infinite;
+    pointer-events:none;
+  }
+  .eq-card { position:relative; overflow:hidden; }
+
+  /* ══════════════ MOBILE RESPONSIVE ══════════════ */
+
+  /* Only show custom cursor on devices with a fine pointer (mouse) */
+  @media (pointer: coarse) {
+    body { cursor:auto; }
+    #cursor-dot, #cursor-ring { display:none !important; }
+    #cursor-canvas { display:none !important; }
+    /* Fix all custom cursors */
+    *  { cursor:auto; }
+    a, button, [onclick], input, .stage-btn, .t-node,
+    .fact-chip, nav a, #mute-btn { cursor:pointer; }
+  }
+
+  @media (max-width: 768px) {
+    /* Music bar compact */
+    #music-bar {
+      padding:7px 14px; gap:8px;
+      flex-wrap:nowrap;
+    }
+    #music-bar .brand {
+      font-size:0.72rem; letter-spacing:0.1em;
+    }
+    #music-label { display:none; }
+    #eq-bars { gap:1.5px; }
+    .eq-bar { width:2px; }
+    #mute-btn { padding:5px 12px; font-size:0.72rem; }
+
+    /* Nav horizontal scroll */
+    nav {
+      top:40px;
+      justify-content:flex-start;
+      flex-wrap:nowrap;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+      padding:7px 12px;
+      gap:4px;
+    }
+    nav::-webkit-scrollbar { display:none; }
+    nav a { padding:4px 10px; font-size:0.7rem; flex-shrink:0; }
+
+    /* Section padding */
+    section { padding:100px 18px 60px; }
+    #hero { padding:100px 18px 60px; }
+
+    /* Canvas heights reduced */
+    #spacetime-canvas { height:220px; cursor:auto; }
+    #solar-canvas     { height:260px; }
+    #stellar-canvas   { height:170px; }
+    #blackhole-canvas { height:240px; cursor:auto; }
+    #cosmic-web-canvas{ height:200px; }
+
+    /* Panels */
+    .panel { padding:18px 16px; }
+
+    /* Typography */
+    p { font-size:0.95rem; }
+    .lead { font-size:1.05rem; }
+    h3 { font-size:1rem; }
+
+    /* Grids always single column on mobile */
+    .grid-2, .grid-3 { grid-template-columns:1fr !important; gap:14px; }
+
+    /* Timeline wrap */
+    .timeline-nodes { flex-wrap:wrap; gap:10px; }
+    .t-node { flex:0 0 auto; width:25%; }
+    .t-label { font-size:0.6rem; max-width:60px; }
+
+    /* Escape velocity bars */
+    #escape-vel-bars { flex-direction:column; }
+    .vel-bar-wrap { min-width:auto; }
+
+    /* Speed row */
+    .speed-row { flex-direction:column; align-items:stretch; gap:8px; }
+    .speed-row span:first-child { display:none; }
+
+    /* Hero stats */
+    .stat-card { padding:14px 12px; }
+    .stat-card .icon { font-size:1.8rem; }
+
+    /* Fact chips */
+    .fact-chip { font-size:0.75rem; padding:4px 10px; }
+
+    /* Equation cards */
+    .eq { font-size:1.2rem; }
+  }
+
+  @media (max-width: 480px) {
+    nav a { font-size:0.65rem; padding:4px 8px; }
+    #music-bar .brand { font-size:0.65rem; }
+    section { padding:94px 12px 50px; }
+    #spacetime-canvas { height:180px; }
+    #solar-canvas     { height:220px; }
+    #blackhole-canvas { height:200px; }
+    h1 { font-size:2rem; }
+    h2 { font-size:1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+
+<!-- AMBIENT AUDIO -->
+<audio id="ambient-audio" loop preload="auto">
+  <source src="space-ambient.mp3" type="audio/mpeg">
+  <source src="leberch-space-ambient-509783.mp3" type="audio/mpeg">
+</audio>
+
+<!-- MUSIC BAR -->
+<div id="music-bar">
+  <span class="brand">✦ Cosmos Explorer</span>
+  <div id="eq-bars">
+    <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
+    <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+  </div>
+  <span id="music-label">♩ Ambient Space Music</span>
+  <button id="mute-btn" onclick="toggleMusic()">
+    <span id="sound-icon">🔇</span>
+    <span id="mute-label">Play Music</span>
+  </button>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a href="#hero">Home</a>
+  <a href="#spacetime">Spacetime</a>
+  <a href="#gravity">Gravity</a>
+  <a href="#solar">Planetary Motion</a>
+  <a href="#stellar">Stars</a>
+  <a href="#blackhole">Black Holes</a>
+  <a href="#cosmology">Cosmology</a>
+  <a href="#equations">Equations</a>
+</nav>
+
+<!-- BACKGROUND CANVASES -->
+<canvas id="starfield"></canvas>
+<canvas id="cursor-canvas"></canvas>
+
+<!-- FLOATING NEBULA ORBS -->
+<div class="orb" style="width:320px;height:320px;top:8%;left:5%;background:rgba(0,212,255,0.22);--dx:80px;--dy:120px;--ds:1.3;animation-duration:28s;animation-delay:0s;"></div>
+<div class="orb" style="width:240px;height:240px;top:35%;right:3%;background:rgba(124,58,237,0.28);--dx:-60px;--dy:90px;--ds:1.1;animation-duration:22s;animation-delay:-7s;"></div>
+<div class="orb" style="width:180px;height:180px;top:60%;left:10%;background:rgba(255,107,53,0.18);--dx:50px;--dy:-80px;--ds:1.4;animation-duration:32s;animation-delay:-14s;"></div>
+<div class="orb" style="width:280px;height:280px;top:75%;right:8%;background:rgba(0,212,255,0.14);--dx:-90px;--dy:60px;--ds:0.85;animation-duration:25s;animation-delay:-4s;"></div>
+<div class="orb" style="width:200px;height:200px;top:20%;left:55%;background:rgba(124,58,237,0.16);--dx:40px;--dy:-100px;--ds:1.2;animation-duration:35s;animation-delay:-18s;"></div>
+<div class="orb" style="width:140px;height:140px;top:50%;left:40%;background:rgba(245,200,66,0.12);--dx:-30px;--dy:50px;--ds:1.5;animation-duration:20s;animation-delay:-10s;"></div>
+
+<!-- AURORA BANDS -->
+<div class="aurora-band" style="top:15%;animation-delay:0s;"></div>
+<div class="aurora-band" style="top:58%;animation-delay:-3s;transform:scaleX(-1);"></div>
+
+<!-- ════════════════ HERO ════════════════ -->
+<section id="hero">
+  <div class="section-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="section-tag">An interactive journey through the cosmos</div>
+    <h1>Space, Time &amp;<br>the Universe</h1>
+    <p class="hero-subtitle">Astronomy · Physics · Mathematics · Wonder</p>
+    <p class="lead" style="max-width:620px;text-align:center;">
+      From the quantum foam of spacetime to the vast filaments of the cosmic web —
+      explore the ideas that define our universe. Scroll to begin your journey.
+    </p>
+    <div class="grid-3" style="max-width:680px;width:100%;margin-top:10px;">
+      <div class="stat-card">
+        <span class="icon">🌌</span>
+        <h3 style="font-size:0.88rem;">Observable Universe</h3>
+        <p style="font-size:0.82rem;margin:0;color:var(--dim-white);">~93 billion<br>light-years wide</p>
+      </div>
+      <div class="stat-card">
+        <span class="icon">⭐</span>
+        <h3 style="font-size:0.88rem;">Estimated Stars</h3>
+        <p style="font-size:0.82rem;margin:0;color:var(--dim-white);">~2 sextillion<br>(2 × 10²¹)</p>
+      </div>
+      <div class="stat-card">
+        <span class="icon">🕰️</span>
+        <h3 style="font-size:0.88rem;">Age of Universe</h3>
+        <p style="font-size:0.82rem;margin:0;color:var(--dim-white);">13.8 billion<br>years</p>
+      </div>
+    </div>
+    <div class="scroll-cue">↓ &nbsp; Scroll to Explore &nbsp; ↓</div>
+  </div>
+</section>
+
+<!-- ════════════════ SPACETIME ════════════════ -->
+<section id="spacetime">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter I</div>
+    <h2>Spacetime — The Fabric of Reality</h2>
+    <p class="lead">
+      Einstein's 1915 General Theory of Relativity revealed that space and time are not separate
+      stages — they are woven into a single four-dimensional fabric called <strong>spacetime</strong>.
+    </p>
+    <div class="grid-2">
+      <div>
+        <h3>What Is Spacetime?</h3>
+        <p>Every event in the universe has four coordinates: three in space (x, y, z) and one in time (t).
+        Nothing can travel faster than light, and that speed limit is baked into the geometry of spacetime itself.</p>
+        <p>Massive objects warp this fabric, creating curvature that we experience as gravity.
+        The more massive an object, the deeper the dent it creates.</p>
+        <span class="fact-chip">Speed of light: 299,792,458 m/s</span>
+        <span class="fact-chip">4 dimensions: (x, y, z, t)</span>
+        <span class="fact-chip">c² links mass &amp; energy</span>
+      </div>
+      <div>
+        <h3>Time Dilation</h3>
+        <p>One of Relativity's strangest predictions: time flows at different rates depending on your speed and gravitational field depth.</p>
+        <p>Astronauts on the ISS age slightly differently than us. GPS satellites must correct for both effects every day, or navigation errors would accumulate by kilometers.</p>
+        <div class="panel" style="padding:14px 18px;margin-top:10px;">
+          <div style="font-family:'Courier New',monospace;font-size:1.1rem;color:var(--star-gold);text-align:center;">
+            t′ = t / √(1 − v²/c²)
+          </div>
+          <p style="font-size:0.82rem;margin:8px 0 0;text-align:center;color:var(--dim-white);">
+            Lorentz time dilation — a moving clock ticks slower
+          </p>
+        </div>
+      </div>
+    </div>
+    <h3 style="margin-top:10px;">Interactive Spacetime Grid</h3>
+    <p style="font-size:0.88rem;color:var(--dim-white);">Move your cursor over the grid to warp spacetime. Click to pulse a gravitational wave.</p>
+    <canvas id="spacetime-canvas"></canvas>
+  </div>
+</section>
+
+<!-- ════════════════ GRAVITY ════════════════ -->
+<section id="gravity">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter II</div>
+    <h2>Gravity — The Curve That Governs All</h2>
+    <p class="lead">
+      Gravity is not a force in the traditional sense. It is the geometry of curved spacetime directing the paths of masses — and even light.
+    </p>
+    <div class="grid-2">
+      <div>
+        <h3>Newton vs. Einstein</h3>
+        <p>Newton described gravity as an invisible attractive force between masses: F = Gm₁m₂/r².
+        This model worked brilliantly for 200 years. But it broke down near very massive objects.</p>
+        <p>Einstein replaced the concept with geometry: mass tells spacetime how to curve,
+        and spacetime tells mass how to move. Light bends around massive objects —
+        confirmed during the 1919 solar eclipse.</p>
+      </div>
+      <div>
+        <h3>Gravitational Waves</h3>
+        <p>When massive objects accelerate — like two colliding black holes — they send ripples
+        through spacetime. These travel at the speed of light, stretching and compressing space.</p>
+        <p>First detected in 2015 by LIGO from a collision 1.3 billion light-years away.
+        The signal stretched LIGO's 4-km arms by just 10⁻¹⁸ metres.</p>
+        <span class="fact-chip">First detection: Sept 14, 2015</span>
+        <span class="fact-chip">LIGO sensitivity: 10⁻¹⁸ m</span>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top:10px;">
+      <div class="panel" style="text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:6px;">🌍</div>
+        <h3 style="font-size:0.9rem;">Surface Gravity</h3>
+        <p style="font-size:0.82rem;margin:0;color:var(--dim-white);">Earth: <strong style="color:#fff;">9.8 m/s²</strong><br>Moon: 1.62 m/s²<br>Jupiter: 24.8 m/s²</p>
+      </div>
+      <div class="panel" style="text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:6px;">🌊</div>
+        <h3 style="font-size:0.9rem;">Tidal Forces</h3>
+        <p style="font-size:0.82rem;margin:0;color:var(--dim-white);">Differential gravity across an object stretches it — Earth's tides are raised by Moon &amp; Sun.</p>
+      </div>
+      <div class="panel" style="text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:6px;">🔭</div>
+        <h3 style="font-size:0.9rem;">Gravitational Lensing</h3>
+        <p style="font-size:0.82rem;margin:0;color:var(--dim-white);">Massive clusters bend light, creating arcs, rings, and multiple images of distant galaxies.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:10px;">
+      <h3>Escape Velocity</h3>
+      <p>To escape a planet's gravity without further thrust, you must reach its escape velocity.
+      Earth's is 11.2 km/s. For a black hole — escape velocity exceeds the speed of light.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;" id="escape-vel-bars"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SOLAR SYSTEM ════════════════ -->
+<section id="solar">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter III</div>
+    <h2>Planetary Motion — Kepler &amp; Beyond</h2>
+    <p class="lead">
+      The planets trace elliptical orbits around the Sun, governed by Kepler's three laws —
+      discovered 66 years before Newton explained why they work.
+    </p>
+    <div class="grid-2">
+      <div>
+        <h3>Kepler's Three Laws</h3>
+        <p><strong style="color:var(--pulsar-cyan);">1. Elliptical Orbits</strong> — Planets travel in ellipses with the Sun at one focus, not perfect circles.</p>
+        <p><strong style="color:var(--pulsar-cyan);">2. Equal Areas</strong> — A line from the Sun sweeps equal areas in equal times. Planets speed up near the Sun.</p>
+        <p><strong style="color:var(--pulsar-cyan);">3. Harmonic Law</strong> — T² ∝ a³ — farther planets have much longer years.</p>
+      </div>
+      <div>
+        <h3>The Solar System at Scale</h3>
+        <p>Our solar system contains 8 planets, hundreds of moons, millions of asteroids, and billions of comets.</p>
+        <p>The Sun holds 99.86% of all mass. Its gravitational reach extends ~100 AU — where the solar wind finally yields to interstellar space.</p>
+        <span class="fact-chip">1 AU = 149.6 million km</span>
+        <span class="fact-chip">Sunlight to Earth: 8.3 min</span>
+      </div>
+    </div>
+    <h3>Interactive Orrery</h3>
+    <p style="font-size:0.88rem;color:var(--dim-white);">Hover planets for info. Click a planet to highlight its orbit. Adjust speed below.</p>
+    <canvas id="solar-canvas"></canvas>
+    <div class="speed-row">
+      <span>Speed:</span>
+      <input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="1.0">
+      <span id="speed-val">1.0×</span>
+    </div>
+    <div class="panel" style="margin-top:20px;">
+      <h3>Why Don't Planets Fall Into the Sun?</h3>
+      <p>Planets are perpetually falling toward the Sun — but they also have sideways velocity. In a vacuum with no friction, they keep moving sideways while falling, and the curve of their fall exactly matches the retreating Sun. This balanced free-fall is called an orbit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ STELLAR LIFECYCLE ════════════════ -->
+<section id="stellar">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter IV</div>
+    <h2>Stellar Life Cycles — Birth, Life &amp; Death of Stars</h2>
+    <p class="lead">Stars are cosmic furnaces that forge every element heavier than hydrogen. Their life story — from nebula to supernova — writes the periodic table.</p>
+    <canvas id="stellar-canvas"></canvas>
+    <div class="stage-btns" id="stage-btns">
+      <button class="stage-btn active" data-stage="0">Nebula</button>
+      <button class="stage-btn" data-stage="1">Protostar</button>
+      <button class="stage-btn" data-stage="2">Main Sequence</button>
+      <button class="stage-btn" data-stage="3">Red Giant</button>
+      <button class="stage-btn" data-stage="4">End State</button>
+    </div>
+    <div id="stage-info" class="panel"></div>
+    <div class="grid-2" style="margin-top:20px;">
+      <div>
+        <h3>Stellar Nucleosynthesis</h3>
+        <p>At a star's core, temperatures exceed 15 million °C. Hydrogen fuses into helium, releasing the energy that keeps the star shining for billions of years. As hydrogen is exhausted: He → C → O → Ne → Si → Fe.</p>
+        <p>Iron is the endpoint. Fusing iron absorbs energy rather than releasing it — triggering the collapse that causes a supernova.</p>
+      </div>
+      <div>
+        <h3>We Are Stardust</h3>
+        <p>Every atom of carbon in your body, every oxygen you breathe, every iron atom in your blood — all forged in the cores of stars that lived and died before our solar system formed.</p>
+        <span class="fact-chip">H → He (main sequence)</span>
+        <span class="fact-chip">He → C, O (red giant)</span>
+        <span class="fact-chip">Si → Fe (supergiant)</span>
+        <span class="fact-chip">Fe → heavy elements (supernova)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ BLACK HOLES ════════════════ -->
+<section id="blackhole">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter V</div>
+    <h2>Black Holes — Where Spacetime Ends</h2>
+    <p class="lead">A black hole is a region where gravity has curved so severely that not even light can escape. They are the densest objects that can exist.</p>
+    <p style="font-size:0.85rem;color:var(--dim-white);">Click anywhere in the visualization to send particles spiraling in.</p>
+    <canvas id="blackhole-canvas"></canvas>
+    <div class="grid-3">
+      <div class="panel" style="text-align:center;">
+        <h3>Stellar</h3>
+        <p style="font-size:0.85rem;color:var(--dim-white);margin:0;">3–100 solar masses. Form when massive stars collapse. The most common type.</p>
+      </div>
+      <div class="panel" style="text-align:center;">
+        <h3>Intermediate</h3>
+        <p style="font-size:0.85rem;color:var(--dim-white);margin:0;">100–100,000 solar masses. Rare and poorly understood. Found in globular clusters.</p>
+      </div>
+      <div class="panel" style="text-align:center;">
+        <h3>Supermassive</h3>
+        <p style="font-size:0.85rem;color:var(--dim-white);margin:0;">Millions to billions of solar masses. Every large galaxy has one at its center.</p>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:4px;">
+      <div class="panel">
+        <h3>The Event Horizon</h3>
+        <p style="margin:0;font-size:0.9rem;">The point of no return. For a non-rotating black hole: r<sub>s</sub> = 2GM/c². Earth compressed to a black hole: r<sub>s</sub> ≈ 9 mm.</p>
+      </div>
+      <div class="panel">
+        <h3>Hawking Radiation</h3>
+        <p style="margin:0;font-size:0.9rem;">Stephen Hawking showed black holes slowly emit thermal radiation due to quantum effects at the event horizon. Over vast timescales they theoretically evaporate completely.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ COSMOLOGY ════════════════ -->
+<section id="cosmology">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter VI</div>
+    <h2>Cosmology — The Story of Everything</h2>
+    <p class="lead">Cosmology asks the deepest questions: How did the universe begin? What is it made of? What is its fate?</p>
+    <h3>The Big Bang Timeline</h3>
+    <p style="font-size:0.88rem;color:var(--dim-white);">Click any milestone to learn more.</p>
+    <div class="timeline-track">
+      <div class="timeline-line"></div>
+      <div class="timeline-nodes" id="timeline-nodes"></div>
+    </div>
+    <div id="timeline-detail" class="panel"></div>
+    <div class="grid-2" style="margin-top:24px;">
+      <div>
+        <h3>Dark Matter &amp; Dark Energy</h3>
+        <p>Ordinary matter — everything we can see — makes up only 5% of the universe.
+        Dark matter (27%) holds galaxies together. Dark energy (68%) is driving accelerating expansion.</p>
+        <div class="panel" style="padding:14px 16px;">
+          <div style="display:flex;height:20px;border-radius:6px;overflow:hidden;margin-bottom:8px;">
+            <div style="width:5%;background:#00d4ff;"></div>
+            <div style="width:27%;background:#7c3aed;"></div>
+            <div style="width:68%;background:#ff6b35;opacity:0.7;"></div>
+          </div>
+          <div style="display:flex;gap:16px;font-size:0.76rem;font-family:'Courier New',monospace;color:var(--dim-white);">
+            <span style="color:#00d4ff;">■ Matter 5%</span>
+            <span style="color:#7c3aed;">■ Dark Matter 27%</span>
+            <span style="color:#ff6b35;">■ Dark Energy 68%</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>The Expanding Universe</h3>
+        <p>Edwin Hubble discovered in 1929 that galaxies are moving away from us — the further they are, the faster they recede. In 1998 astronomers discovered this expansion is <em>accelerating</em>, driven by dark energy.</p>
+        <p>The Hubble constant H₀ ≈ 67–73 km/s/Mpc — for every megaparsec of distance, galaxies recede ~70 km/s faster.</p>
+      </div>
+    </div>
+    <h3 style="margin-top:10px;">Cosmic Web</h3>
+    <p style="font-size:0.88rem;color:var(--dim-white);">The large-scale structure — galaxies cluster into filaments surrounding vast voids. Move your cursor to disturb the web.</p>
+    <canvas id="cosmic-web-canvas"></canvas>
+  </div>
+</section>
+
+<!-- ════════════════ EQUATIONS ════════════════ -->
+<section id="equations">
+  <div class="section-inner fade-up">
+    <div class="section-tag">Chapter VII</div>
+    <h2>The Mathematics of the Cosmos</h2>
+    <p class="lead">The universe speaks in mathematics. These equations are the grammar through which physicists read its deepest secrets.</p>
+    <div class="grid-3">
+      <div class="eq-card">
+        <div class="eq-name">Mass–Energy Equivalence</div>
+        <div class="eq">E = mc²</div>
+        <p class="eq-desc">Mass and energy are interchangeable. A tiny amount of mass contains enormous energy — the principle behind nuclear fusion in stars.</p>
+      </div>
+      <div class="eq-card">
+        <div class="eq-name">Newton's Gravitation</div>
+        <div class="eq">F = Gm₁m₂/r²</div>
+        <p class="eq-desc">Gravitational force falls off with the square of distance. Double the distance → quarter the force.</p>
+      </div>
+      <div class="eq-card">
+        <div class="eq-name">Hubble's Law</div>
+        <div class="eq">v = H₀ · d</div>
+        <p class="eq-desc">A galaxy's recession speed is proportional to its distance. H₀ measures the expansion rate of the universe.</p>
+      </div>
+      <div class="eq-card">
+        <div class="eq-name">Schwarzschild Radius</div>
+        <div class="eq">r<sub>s</sub> = 2GM/c²</div>
+        <p class="eq-desc">The radius at which an object becomes a black hole. Compress any mass inside this radius and its gravity becomes inescapable.</p>
+      </div>
+      <div class="eq-card">
+        <div class="eq-name">Kepler's Third Law</div>
+        <div class="eq">T² = a³</div>
+        <p class="eq-desc">An orbit's period squared equals its semi-major axis cubed (in solar units). Farther planets have much longer years.</p>
+      </div>
+      <div class="eq-card">
+        <div class="eq-name">Planck–Einstein Relation</div>
+        <div class="eq">E = hf</div>
+        <p class="eq-desc">The energy of a photon equals Planck's constant times its frequency. Higher frequency (bluer) light carries more energy.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:24px;text-align:center;">
+      <h3>Einstein's Field Equations</h3>
+      <div style="font-size:1.3rem;color:var(--star-gold);font-family:'Georgia',serif;margin:14px 0;letter-spacing:0.03em;text-shadow:0 0 20px rgba(245,200,66,0.4);">
+        G<sub>μν</sub> + Λg<sub>μν</sub> = (8πG/c⁴) T<sub>μν</sub>
+      </div>
+      <p style="max-width:680px;margin:0 auto;font-size:0.9rem;">
+        Einstein's master equation of General Relativity. The left side describes the curvature of spacetime.
+        The right side describes mass and energy. <em>Matter tells spacetime how to curve; curved spacetime tells matter how to move.</em>
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  ✦ Cosmos Explorer &nbsp;|&nbsp; Built with curiosity &amp; wonder &nbsp;|&nbsp;
+  "The cosmos is within us. We are made of star-stuff." — Carl Sagan
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// MUSIC
+// ═══════════════════════════════════════════════════════
+const audio = document.getElementById('ambient-audio');
+const soundIcon = document.getElementById('sound-icon');
+const muteLabel = document.getElementById('mute-label');
+const eqBars = document.getElementById('eq-bars');
+let playing = false;
+
+audio.volume = 0.45;
+
+function toggleMusic() {
+  if (!playing) {
+    const p = audio.play();
+    if (p !== undefined) {
+      p.then(() => {
+        playing = true;
+        soundIcon.textContent = '🔊';
+        muteLabel.textContent = 'Mute';
+        eqBars.classList.add('playing');
+      }).catch(err => {
+        console.warn('Audio play failed:', err);
+        // Try reloading
+        audio.load();
+        audio.play().then(() => {
+          playing = true;
+          soundIcon.textContent = '🔊';
+          muteLabel.textContent = 'Mute';
+          eqBars.classList.add('playing');
+        }).catch(() => {});
+      });
+    }
+  } else {
+    audio.pause();
+    playing = false;
+    soundIcon.textContent = '🔇';
+    muteLabel.textContent = 'Play Music';
+    eqBars.classList.remove('playing');
+  }
+}
+
+// ripple on music button hover
+document.getElementById('mute-btn').addEventListener('mousemove', e => {
+  const r = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width * 100).toFixed(1);
+  const y = ((e.clientY - r.top) / r.height * 100).toFixed(1);
+  e.currentTarget.style.setProperty('--bx', x + '%');
+  e.currentTarget.style.setProperty('--by', y + '%');
+});
+
+// ═══════════════════════════════════════════════════════
+// CUSTOM CURSOR + TRAIL
+// ═══════════════════════════════════════════════════════
+const cursorDot = document.getElementById('cursor-dot');
+const cursorRing = document.getElementById('cursor-ring');
+const cursorCanvas = document.getElementById('cursor-canvas');
+const cCtx = cursorCanvas.getContext('2d');
+
+let mouseX = -100, mouseY = -100;
+let ringX = -100, ringY = -100;
+
+function resizeCursorCanvas() {
+  cursorCanvas.width = window.innerWidth;
+  cursorCanvas.height = window.innerHeight;
+}
+resizeCursorCanvas();
+window.addEventListener('resize', resizeCursorCanvas);
+
+// Trail particles
+const trail = [];
+
+document.addEventListener('mousemove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
+  cursorDot.style.left = mouseX + 'px';
+  cursorDot.style.top  = mouseY + 'px';
+
+  // Add trail sparkle
+  if (Math.random() < 0.4) {
+    trail.push({
+      x: mouseX, y: mouseY,
+      vx: (Math.random()-0.5)*1.5,
+      vy: (Math.random()-0.5)*1.5 - 0.5,
+      r: Math.random()*2.5+0.5,
+      alpha: 0.7,
+      color: Math.random() < 0.5 ? '0,212,255' : '124,58,237',
+      life: 1
+    });
+  }
+});
+
+// Click burst
+document.addEventListener('click', e => {
+  // ripple ring
+  const ring = document.createElement('div');
+  ring.className = 'ripple-ring';
+  ring.style.cssText = `left:${e.clientX}px;top:${e.clientY}px;margin-left:-5px;margin-top:-5px;`;
+  document.body.appendChild(ring);
+  setTimeout(() => ring.remove(), 700);
+
+  // burst particles
+  for (let i = 0; i < 18; i++) {
+    const a = (i/18)*Math.PI*2;
+    const spd = Math.random()*3+1;
+    trail.push({
+      x: e.clientX, y: e.clientY,
+      vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
+      r: Math.random()*3+1, alpha:1,
+      color: ['245,200,66','0,212,255','124,58,237','255,107,53'][Math.floor(Math.random()*4)],
+      life:1
+    });
+  }
+});
+
+function animateCursor() {
+  // Smooth ring follow
+  ringX += (mouseX - ringX) * 0.12;
+  ringY += (mouseY - ringY) * 0.12;
+  cursorRing.style.left = ringX + 'px';
+  cursorRing.style.top  = ringY + 'px';
+
+  // Draw trail
+  cCtx.clearRect(0,0,cursorCanvas.width,cursorCanvas.height);
+  for (let i = trail.length-1; i>=0; i--) {
+    const p = trail[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.04;
+    p.life -= 0.025;
+    p.alpha = p.life;
+    if (p.life <= 0) { trail.splice(i,1); continue; }
+
+    // 4-pointed sparkle for some
+    if (p.r > 2) {
+      cCtx.save();
+      cCtx.translate(p.x, p.y);
+      cCtx.fillStyle = `rgba(${p.color},${p.alpha})`;
+      const sz = p.r * p.life;
+      for (let k=0; k<4; k++) {
+        cCtx.beginPath();
+        cCtx.ellipse(0,0,sz,sz*0.2,k*Math.PI/2,0,Math.PI*2);
+        cCtx.fill();
+      }
+      cCtx.restore();
+    } else {
+      cCtx.beginPath();
+      cCtx.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2);
+      cCtx.fillStyle = `rgba(${p.color},${p.alpha})`;
+      cCtx.fill();
+    }
+  }
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+// ═══════════════════════════════════════════════════════
+// STARFIELD — 4 parallax layers, colored + sparkle stars,
+//             nebula clouds, frequent shooting stars
+// ═══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('starfield');
+  const ctx    = canvas.getContext('2d');
+  let W=0, H=0, stars=[], shooters=[], nebulae=[], scrollY=0;
+
+  const LAYERS = [
+    { count:220, speed:0.04, sizeMax:0.9,  parallax:0.008 },
+    { count:130, speed:0.11, sizeMax:1.5,  parallax:0.02  },
+    { count: 60, speed:0.22, sizeMax:2.2,  parallax:0.04  },
+    { count: 20, speed:0.38, sizeMax:3.0,  parallax:0.07  },
+  ];
+
+  const STAR_COLORS = [
+    '220,240,255','255,255,255','255,220,160',
+    '255,185,120','175,215,255','210,255,210','255,150,150',
+  ];
+
+  window.addEventListener('scroll', ()=>{ scrollY=window.scrollY; });
+
+  function resize(){
+    W=canvas.width=window.innerWidth;
+    H=canvas.height=window.innerHeight;
+  }
+
+  function makeStar(layer){
+    const ci=Math.floor(Math.random()*STAR_COLORS.length);
+    return {
+      x:Math.random()*W, y:Math.random()*H,
+      r:Math.random()*layer.sizeMax+0.2,
+      baseAlpha:Math.random()*0.55+0.25,
+      alpha:0,
+      twinkle:Math.random()*Math.PI*2,
+      twinkleSpeed:Math.random()*0.025+0.004,
+      speed:layer.speed*(Math.random()*0.5+0.75),
+      parallax:layer.parallax,
+      color:STAR_COLORS[ci],
+      sparkle:Math.random()<0.07,
+    };
+  }
+
+  function makeShooter(){
+    const side = Math.random()<0.5; // left-to-right or right-to-left
+    const angle = (Math.random()*35+8) * Math.PI/180 * (side?1:-1);
+    const spd = Math.random()*9+6;
+    return {
+      x:side ? -20 : W+20, y:Math.random()*H*0.6,
+      vx:Math.cos(angle)*spd*(side?1:-1), vy:Math.sin(Math.abs(angle))*spd,
+      len:Math.random()*140+70,
+      life:1,
+      color:['255,255,255','0,212,255','245,200,66','180,160,255'][Math.floor(Math.random()*4)],
+    };
+  }
+
+  // Soft nebula cloud blobs scattered across the page
+  function makeNebula(){
+    return {
+      x:Math.random()*W, y:Math.random()*H*3,
+      rx:Math.random()*220+100, ry:Math.random()*130+60,
+      hue:Math.random()<0.5 ? 210 : (Math.random()<0.5 ? 270 : 130),
+      alpha:Math.random()*0.045+0.015,
+      phase:Math.random()*Math.PI*2,
+    };
+  }
+
+  function init(){
+    resize();
+    stars=[];
+    LAYERS.forEach(layer=>{ for(let i=0;i<layer.count;i++) stars.push(makeStar(layer)); });
+    nebulae=Array.from({length:18}, makeNebula);
+  }
+
+  // Shooting stars: one every ~1.8 s
+  setInterval(()=>{ if(shooters.length<5) shooters.push(makeShooter()); }, 1800);
+
+  function drawSparkle(x,y,r,alpha,color){
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle=`rgba(${color},${alpha})`;
+    for(let k=0;k<4;k++){
+      ctx.beginPath();
+      ctx.ellipse(0,0,r*2.8,r*0.3,k*Math.PI/2,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(0,0,r*0.9,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${alpha})`; ctx.fill();
+    ctx.restore();
+  }
+
+  let t=0;
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    t+=0.008;
+
+    // Nebula clouds (very subtle, drift with parallax)
+    nebulae.forEach(n=>{
+      const dy=(scrollY*0.015+t*6)%( H*3);
+      const ry=(n.y-dy+H*3)%(H*3);
+      if(ry>H+200) return;
+      const pulse=1+0.12*Math.sin(t*0.6+n.phase);
+      const g=ctx.createRadialGradient(n.x,ry,0,n.x,ry,n.rx*pulse);
+      g.addColorStop(0,`hsla(${n.hue},80%,70%,${n.alpha*1.4})`);
+      g.addColorStop(0.5,`hsla(${n.hue},70%,55%,${n.alpha})`);
+      g.addColorStop(1,'transparent');
+      ctx.save();
+      ctx.scale(1, n.ry/n.rx);
+      ctx.beginPath();
+      ctx.arc(n.x, ry*(n.rx/n.ry), n.rx*pulse, 0, Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+      ctx.restore();
+    });
+
+    // Stars
+    stars.forEach(s=>{
+      s.twinkle+=s.twinkleSpeed;
+      s.alpha=s.baseAlpha*(0.45+0.55*Math.sin(s.twinkle));
+      const drawY=(s.y+scrollY*s.parallax)%H;
+      if(s.sparkle){
+        drawSparkle(s.x,drawY,s.r,s.alpha,s.color);
+      } else {
+        if(s.r>1.4){
+          const g=ctx.createRadialGradient(s.x,drawY,0,s.x,drawY,s.r*4.5);
+          g.addColorStop(0,`rgba(${s.color},${s.alpha*0.45})`);
+          g.addColorStop(1,'transparent');
+          ctx.beginPath(); ctx.arc(s.x,drawY,s.r*4.5,0,Math.PI*2);
+          ctx.fillStyle=g; ctx.fill();
+        }
+        ctx.beginPath(); ctx.arc(s.x,drawY,s.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(${s.color},${s.alpha})`; ctx.fill();
+      }
+      s.y+=s.speed;
+      if(s.y>H){ s.y=0; s.x=Math.random()*W; }
+    });
+
+    // Shooting stars
+    shooters=shooters.filter(sh=>{
+      const tx=sh.x-sh.vx*(sh.len/Math.max(Math.abs(sh.vx),0.1));
+      const ty=sh.y-sh.vy*(sh.len/Math.max(Math.abs(sh.vy),0.1));
+      const grad=ctx.createLinearGradient(sh.x,sh.y,tx,ty);
+      grad.addColorStop(0,`rgba(${sh.color},${sh.life})`);
+      grad.addColorStop(1,`rgba(${sh.color},0)`);
+      ctx.beginPath(); ctx.moveTo(sh.x,sh.y); ctx.lineTo(tx,ty);
+      ctx.strokeStyle=grad; ctx.lineWidth=1.8; ctx.stroke();
+      // bright head
+      const hg=ctx.createRadialGradient(sh.x,sh.y,0,sh.x,sh.y,5);
+      hg.addColorStop(0,`rgba(255,255,255,${sh.life})`);
+      hg.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(sh.x,sh.y,5,0,Math.PI*2);
+      ctx.fillStyle=hg; ctx.fill();
+      sh.x+=sh.vx; sh.y+=sh.vy; sh.life-=0.009;
+      return sh.life>0 && sh.x>-150 && sh.x<W+150 && sh.y<H+50;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  init();
+  window.addEventListener('resize', init);
+  requestAnimationFrame(draw);
+})();
+
+// ═══════════════════════════════════════════════════════
+// PANEL 3D TILT
+// ═══════════════════════════════════════════════════════
+document.querySelectorAll('.panel, .stat-card, .eq-card').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width/2;
+    const cy = r.top + r.height/2;
+    const dx = (e.clientX-cx) / (r.width/2);
+    const dy = (e.clientY-cy) / (r.height/2);
+    el.style.transform = `perspective(600px) rotateY(${dx*6}deg) rotateX(${-dy*6}deg) translateZ(4px)`;
+    el.style.transition = 'none';
+  });
+  el.addEventListener('mouseleave', () => {
+    el.style.transform = '';
+    el.style.transition = 'transform 0.5s ease, box-shadow 0.3s, border-color 0.3s';
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// SPACETIME GRID
+// ═══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('spacetime-canvas');
+  const ctx = canvas.getContext('2d');
+  let mx=-1, my=-1, pulseRadius=0, pulseAlpha=0, pulsing=false;
+
+  function stGetPos(e){
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return [(src.clientX-r.left)*(canvas.width/r.width),(src.clientY-r.top)*(canvas.height/r.height)];
+  }
+  canvas.addEventListener('mousemove',  e=>{ [mx,my]=stGetPos(e); });
+  canvas.addEventListener('mouseleave', ()=>{ mx=-1; my=-1; });
+  canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); [mx,my]=stGetPos(e); },{passive:false});
+  canvas.addEventListener('touchend',   ()=>{ mx=-1; my=-1; });
+  function stPulse(e){ [mx,my]=stGetPos(e); pulseRadius=0; pulseAlpha=0.8; pulsing=true; }
+  canvas.addEventListener('click',      stPulse);
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); stPulse(e); },{passive:false});
+
+  function resize() {
+    const r=canvas.getBoundingClientRect();
+    canvas.width=r.width; canvas.height=r.height;
+  }
+
+  function draw() {
+    resize();
+    const W=canvas.width, H=canvas.height;
+    ctx.clearRect(0,0,W,H);
+    const COLS=22, ROWS=13;
+    const cw=W/COLS, ch=H/ROWS;
+
+    // Distort and draw grid
+    function distortPt(ox,oy) {
+      let x=ox, y=oy;
+      if (mx>=0) {
+        const dx=ox-mx, dy=oy-my;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        const str = 90 / (d*0.04+1);
+        const a=Math.atan2(dy,dx);
+        x+=Math.cos(a)*str*0.55;
+        y+=Math.sin(a)*str*0.55;
+      }
+      return [x,y];
+    }
+
+    // Vertical lines
+    for (let i=0;i<=COLS;i++) {
+      ctx.beginPath();
+      for (let j=0;j<=ROWS;j++) {
+        const [x,y]=distortPt(i*cw,j*ch);
+        const alpha = mx>=0 ? (0.1 + 0.3/(Math.hypot(i*cw-mx,j*ch-my)*0.01+1)) : 0.2;
+        j===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle='rgba(0,212,255,0.22)'; ctx.lineWidth=1; ctx.stroke();
+    }
+    // Horizontal lines
+    for (let j=0;j<=ROWS;j++) {
+      ctx.beginPath();
+      for (let i=0;i<=COLS;i++) {
+        const [x,y]=distortPt(i*cw,j*ch);
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle='rgba(0,212,255,0.22)'; ctx.lineWidth=1; ctx.stroke();
+    }
+
+    // Mass + glow
+    if (mx>=0) {
+      const grad=ctx.createRadialGradient(mx,my,0,mx,my,70);
+      grad.addColorStop(0,'rgba(245,200,66,0.9)');
+      grad.addColorStop(0.4,'rgba(245,200,66,0.3)');
+      grad.addColorStop(1,'rgba(245,200,66,0)');
+      ctx.beginPath(); ctx.arc(mx,my,70,0,Math.PI*2);
+      ctx.fillStyle=grad; ctx.fill();
+      ctx.beginPath(); ctx.arc(mx,my,9,0,Math.PI*2);
+      ctx.fillStyle='#fff8d0'; ctx.fill();
+      ctx.beginPath(); ctx.arc(mx,my,5,0,Math.PI*2);
+      ctx.fillStyle='#fff'; ctx.fill();
+    }
+
+    // Gravitational wave pulse
+    if (pulsing) {
+      pulseRadius+=4;
+      pulseAlpha*=0.965;
+      ctx.beginPath(); ctx.arc(mx,my,pulseRadius,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(0,212,255,${pulseAlpha})`;
+      ctx.lineWidth=2; ctx.stroke();
+      if (pulseAlpha<0.02 || pulseRadius>400) pulsing=false;
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ═══════════════════════════════════════════════════════
+// ESCAPE VELOCITY BARS
+// ═══════════════════════════════════════════════════════
+(function() {
+  const data=[
+    {name:'Moon',vel:2.4,color:'#8899bb'},
+    {name:'Earth',vel:11.2,color:'#00d4ff'},
+    {name:'Jupiter',vel:59.5,color:'#f5c842'},
+    {name:'Sun',vel:617,color:'#ff6b35'},
+    {name:'Neutron Star',vel:100000,color:'#c084fc'},
+  ];
+  const max=Math.log(100001);
+  const c=document.getElementById('escape-vel-bars');
+  if(!c)return;
+  data.forEach(d=>{
+    const pct=(Math.log(d.vel+1)/max)*100;
+    const wrap=document.createElement('div');
+    wrap.className='vel-bar-wrap';
+    wrap.innerHTML=`
+      <div style="font-size:0.78rem;font-family:'Courier New',monospace;color:#c0cce8;margin-bottom:5px;">${d.name}</div>
+      <div class="vel-bar-track"><div class="vel-bar-fill" style="width:0%;background:${d.color};"></div></div>
+      <div style="font-size:0.72rem;color:${d.color};margin-top:3px;font-family:'Courier New',monospace;">${d.vel.toLocaleString()} km/s</div>`;
+    c.appendChild(wrap);
+    setTimeout(()=>{ wrap.querySelector('.vel-bar-fill').style.width=pct+'%'; },300);
+  });
+})();
+
+// ═══════════════════════════════════════════════════════
+// SOLAR SYSTEM ORRERY
+// ═══════════════════════════════════════════════════════
+(function(){
+  const canvas=document.getElementById('solar-canvas');
+  const ctx=canvas.getContext('2d');
+  const slider=document.getElementById('speed-slider');
+  const speedLabel=document.getElementById('speed-val');
+  let speedFactor=1.0, selectedPlanet=null;
+
+  slider.addEventListener('input',()=>{
+    speedFactor=parseFloat(slider.value);
+    speedLabel.textContent=speedFactor.toFixed(1)+'×';
+  });
+
+  const planets=[
+    {name:'Mercury',color:'#b0b0c0',r:5, orbit:68, period:0.241,angle:0,   info:'Closest to Sun. No atmosphere. Surface temps: −180°C to 430°C.'},
+    {name:'Venus',  color:'#e8c080',r:7, orbit:100,period:0.615,angle:1.2, info:'Hottest planet (462°C avg). Thick CO₂ atmosphere. Rotates backwards.'},
+    {name:'Earth',  color:'#4fa3e0',r:8, orbit:138,period:1.0,  angle:2.5, info:'Our home. Only known planet with life. 71% ocean surface.'},
+    {name:'Mars',   color:'#c1440e',r:6, orbit:172,period:1.88, angle:0.8, info:'The Red Planet. Has the largest volcano (Olympus Mons) in the solar system.'},
+    {name:'Jupiter',color:'#c8a06c',r:14,orbit:215,period:11.86,angle:3.0, info:'Largest planet. Great Red Spot is a storm larger than Earth, ongoing 350+ years.'},
+    {name:'Saturn', color:'#e4d191',r:12,orbit:255,period:29.46,angle:1.7, info:'Ring system made of ice and rock. Less dense than water — it would float!'},
+  ];
+
+  let hoveredPlanet=null, orbitAlpha={};
+  planets.forEach(p=>orbitAlpha[p.name]=0);
+
+  function solarPos(e){
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return [(src.clientX-r.left)*(canvas.width/r.width),(src.clientY-r.top)*(canvas.height/r.height)];
+  }
+  function solarHitTest(mx,my){
+    const cx=canvas.width/2, cy=canvas.height/2;
+    hoveredPlanet=null;
+    planets.forEach(p=>{
+      const px=cx+Math.cos(p.angle)*p.orbit;
+      const py=cy+Math.sin(p.angle)*p.orbit;
+      if(Math.hypot(mx-px,my-py)<p.r+14) hoveredPlanet=p;
+    });
+  }
+  canvas.addEventListener('mousemove',  e=>{ solarHitTest(...solarPos(e)); });
+  canvas.addEventListener('mouseleave', ()=>{ hoveredPlanet=null; });
+  canvas.addEventListener('click',      ()=>{ if(hoveredPlanet) selectedPlanet=selectedPlanet===hoveredPlanet?null:hoveredPlanet; });
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); solarHitTest(...solarPos(e)); },{passive:false});
+  canvas.addEventListener('touchend',   e=>{ e.preventDefault(); if(hoveredPlanet) selectedPlanet=selectedPlanet===hoveredPlanet?null:hoveredPlanet; },{passive:false});
+
+  function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width; canvas.height=r.height; }
+
+  let last=0;
+  function draw(ts){
+    resize();
+    const dt=Math.min((ts-last)/1000,0.05); last=ts;
+    const W=canvas.width, H=canvas.height;
+    const cx=W/2, cy=H/2;
+    ctx.clearRect(0,0,W,H);
+
+    // Sun corona layers
+    [80,55,35,18].forEach((rad,i)=>{
+      const a=['rgba(255,100,0,0)','rgba(255,140,20,0.06)','rgba(255,200,50,0.18)','rgba(255,240,120,0.7)'][i];
+      const b=['rgba(255,100,0,0)','rgba(255,120,0,0)','rgba(255,160,30,0)','rgba(255,200,80,0)'][i];
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+      g.addColorStop(0,a); g.addColorStop(1,b);
+      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+    });
+    ctx.beginPath(); ctx.arc(cx,cy,15,0,Math.PI*2);
+    ctx.fillStyle='#fff8d0'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,10,0,Math.PI*2);
+    ctx.fillStyle='#fffde0'; ctx.fill();
+
+    planets.forEach(p=>{
+      p.angle+=(Math.PI*2/(p.period*200))*speedFactor*dt*60;
+
+      const isHov=(hoveredPlanet===p), isSel=(selectedPlanet===p);
+      orbitAlpha[p.name]+= (isHov||isSel?1:-1)*0.08;
+      orbitAlpha[p.name]=Math.max(0,Math.min(1,orbitAlpha[p.name]));
+
+      // Orbit ring
+      const oA=0.06+orbitAlpha[p.name]*0.35;
+      ctx.beginPath(); ctx.arc(cx,cy,p.orbit,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${isHov||isSel?'0,212,255':'255,255,255'},${oA})`;
+      ctx.lineWidth=isHov||isSel?1.5:1; ctx.stroke();
+
+      const px=cx+Math.cos(p.angle)*p.orbit;
+      const py=cy+Math.sin(p.angle)*p.orbit;
+
+      // Saturn rings
+      if(p.name==='Saturn'){
+        ctx.save(); ctx.translate(px,py); ctx.scale(1,0.3);
+        [p.r+14,p.r+10].forEach((rr,i)=>{
+          ctx.beginPath(); ctx.arc(0,0,rr,0,Math.PI*2);
+          ctx.strokeStyle=`rgba(228,209,145,${i===0?0.35:0.55})`; ctx.lineWidth=i===0?6:3; ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      // Planet glow
+      const gr=ctx.createRadialGradient(px,py,0,px,py,p.r*3.5);
+      gr.addColorStop(0,p.color+'aa'); gr.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(px,py,p.r*3.5,0,Math.PI*2);
+      ctx.fillStyle=gr; ctx.fill();
+
+      // Planet body
+      ctx.beginPath(); ctx.arc(px,py,isHov?p.r*1.15:p.r,0,Math.PI*2);
+      ctx.fillStyle=p.color; ctx.fill();
+
+      // Shine
+      ctx.beginPath(); ctx.arc(px-p.r*0.3,py-p.r*0.3,p.r*0.45,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
+
+      // Earth cloud swirl
+      if(p.name==='Earth'){
+        ctx.beginPath(); ctx.arc(px+2,py-3,3,0,Math.PI*2);
+        ctx.fillStyle='rgba(200,230,255,0.25)'; ctx.fill();
+      }
+
+      // Hover/select tooltip
+      if(isHov||isSel){
+        const txt=isSel?p.info:p.name;
+        const maxW=180;
+        ctx.save();
+        ctx.font=isSel?'11px Georgia':'bold 12px Courier New';
+        const lines=txt.match(/.{1,26}(\s|$)/g)||[txt];
+        const bh=isSel?lines.length*16+18:28;
+        const bw=isSel?maxW+8:p.name.length*8+16;
+        let bx=px+p.r+6, by=py-bh/2;
+        if(bx+bw>W-10) bx=px-bw-p.r-6;
+        ctx.fillStyle='rgba(3,8,25,0.9)'; ctx.strokeStyle='rgba(0,212,255,0.5)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,6); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.textAlign='left';
+        if(isSel){ lines.forEach((l,i)=>ctx.fillText(l.trim(),bx+6,by+14+i*16)); }
+        else { ctx.font='bold 12px Courier New'; ctx.fillText(p.name,bx+8,by+18); }
+        ctx.restore();
+      }
+    });
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+// ═══════════════════════════════════════════════════════
+// STELLAR LIFECYCLE
+// ═══════════════════════════════════════════════════════
+(function(){
+  const canvas=document.getElementById('stellar-canvas');
+  const ctx=canvas.getContext('2d');
+  const info=document.getElementById('stage-info');
+  let currentStage=0, t=0;
+
+  const stages=[
+    {name:'Nebula',color:'#7c3aed',color2:'#4f46e5',particles:100,radius:65,
+     description:`<h3>Nebula — The Stellar Nursery</h3><p>Stars are born inside vast clouds of gas and dust called nebulae — mostly hydrogen and helium. Gravity slowly pulls clumps together over millions of years. Famous examples: the Orion Nebula, the Eagle Nebula's "Pillars of Creation."</p>`},
+    {name:'Protostar',color:'#ff9944',color2:'#ff6600',particles:50,radius:30,
+     description:`<h3>Protostar</h3><p>As the gas cloud collapses, gravitational energy converts to heat. A dense, hot core forms — a protostar — but hydrogen fusion hasn't started yet. A rotating disk of gas and dust surrounds it, which may eventually form planets. This phase lasts ~100,000 years for a Sun-like star.</p>`},
+    {name:'Main Sequence',color:'#ffe580',color2:'#ffcc00',particles:24,radius:22,
+     description:`<h3>Main Sequence Star</h3><p>When core temperature reaches ~10 million °C, hydrogen fusion ignites. The star enters the most stable phase of its life. Our Sun has been here for 4.6 billion years and has about 5 billion more to go. Massive stars burn through hydrogen in just millions of years.</p>`},
+    {name:'Red Giant',color:'#ff5522',color2:'#cc2200',particles:40,radius:58,
+     description:`<h3>Red Giant / Supergiant</h3><p>When hydrogen in the core is exhausted, the core contracts while outer layers expand enormously, cooling and turning red. A Sun-like star becomes a Red Giant large enough to engulf Earth. Betelgeuse in Orion is a Red Supergiant, hundreds of times larger than the Sun.</p>`},
+    {name:'End State',color:'#00d4ff',color2:'#7c3aed',particles:80,radius:9,
+     description:`<h3>End States</h3><p><strong style="color:#f5c842;">White Dwarf</strong> — Low/medium mass stars shed outer layers forming a planetary nebula, leaving a dense carbon core that slowly cools over billions of years.</p><p><strong style="color:#ff6b35;">Supernova</strong> — Massive stars collapse catastrophically then explode, briefly outshining entire galaxies.</p><p><strong style="color:#c084fc;">Neutron Star / Black Hole</strong> — The remnant: an ultra-dense neutron star or, for the most massive, a black hole.</p>`},
+  ];
+
+  function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width; canvas.height=r.height; }
+
+  let particles=[];
+
+  function setStage(i){
+    currentStage=i;
+    info.innerHTML=stages[i].description;
+    document.querySelectorAll('.stage-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+    const s=stages[i];
+    particles=Array.from({length:s.particles},()=>({
+      angle:Math.random()*Math.PI*2,
+      dist:Math.random()*s.radius+3,
+      speed:(Math.random()*0.5+0.1)*(20/s.radius),
+      r:Math.random()*3+0.5,
+      alpha:Math.random()*0.7+0.2,
+      wobble:Math.random()*Math.PI*2,
+    }));
+  }
+
+  document.querySelectorAll('.stage-btn').forEach((btn,i)=>{
+    btn.addEventListener('click',()=>setStage(i));
+  });
+
+  function draw(){
+    resize();
+    const W=canvas.width, H=canvas.height;
+    const cx=W/2, cy=H/2;
+    ctx.clearRect(0,0,W,H);
+    t+=0.016;
+    const s=stages[currentStage];
+
+    // Outer nebula cloud
+    const outerG=ctx.createRadialGradient(cx,cy,s.radius,cx,cy,s.radius*3.5);
+    outerG.addColorStop(0,s.color+'33');
+    outerG.addColorStop(1,'transparent');
+    ctx.beginPath(); ctx.arc(cx,cy,s.radius*3.5,0,Math.PI*2);
+    ctx.fillStyle=outerG; ctx.fill();
+
+    // Core glow layers
+    [s.radius*2.2, s.radius*1.5, s.radius].forEach((rad,i)=>{
+      const a=['18','44','bb'][i];
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+      g.addColorStop(0,s.color+a);
+      g.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+    });
+
+    // Core
+    const coreG=ctx.createRadialGradient(cx-s.radius*0.25,cy-s.radius*0.25,0,cx,cy,s.radius);
+    coreG.addColorStop(0,'#ffffff');
+    coreG.addColorStop(0.3,s.color2||s.color);
+    coreG.addColorStop(1,s.color);
+    ctx.beginPath(); ctx.arc(cx,cy,s.radius,0,Math.PI*2);
+    ctx.fillStyle=coreG; ctx.fill();
+
+    // Particles
+    particles.forEach(p=>{
+      p.angle+=p.speed*0.016;
+      p.wobble+=0.03;
+      const d=p.dist*(1+0.12*Math.sin(t*0.8+p.wobble));
+      const px=cx+Math.cos(p.angle)*d;
+      const py=cy+Math.sin(p.angle)*d;
+      const pg=ctx.createRadialGradient(px,py,0,px,py,p.r*2);
+      pg.addColorStop(0,s.color+'ff');
+      pg.addColorStop(1,s.color+'00');
+      ctx.beginPath(); ctx.arc(px,py,p.r*2,0,Math.PI*2);
+      ctx.fillStyle=pg; ctx.fill();
+      ctx.beginPath(); ctx.arc(px,py,p.r*0.6,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${p.alpha*0.8})`; ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  setStage(0);
+  requestAnimationFrame(draw);
+})();
+
+// ═══════════════════════════════════════════════════════
+// BLACK HOLE  (fixed: no per-frame resize, proper disk sort, particle replenishment)
+// ═══════════════════════════════════════════════════════
+(function(){
+  const canvas = document.getElementById('blackhole-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W=0, H=0, cx=0, cy=0;
+  let particles=[], t=0;
+  let pointerX=-1, pointerY=-1;
+
+  // ── Build accretion disk (fixed parameters, never empty) ──
+  const accretion = Array.from({length:300}, () => ({
+    angle : Math.random()*Math.PI*2,
+    radius: 58 + Math.random()*95,   // starts 58-153 px from centre
+    speed : (0.007 + Math.random()*0.013) * (Math.random()<0.5?1:-1), // CW or CCW
+    alpha : Math.random()*0.65+0.25,
+    r     : Math.random()*2.2+0.5,
+    hue   : Math.random()*55 + 5,    // orange-yellow
+  }));
+
+  // ── Resize only when needed ──
+  function checkResize(){
+    const rect = canvas.getBoundingClientRect();
+    const dw = Math.floor(rect.width);
+    const dh = Math.floor(rect.height);
+    if(canvas.width !== dw || canvas.height !== dh){
+      canvas.width  = dw;
+      canvas.height = dh;
+      W=dw; H=dh; cx=W/2; cy=H/2;
+    }
+  }
+
+  // ── Pointer helpers (mouse + touch) ──
+  function pointerPos(e, rect){
+    const src = e.touches ? e.touches[0] : e;
+    return [
+      (src.clientX - rect.left) * (canvas.width  / rect.width),
+      (src.clientY - rect.top)  * (canvas.height / rect.height)
+    ];
+  }
+  function spawnParticles(px,py){
+    for(let i=0;i<22;i++){
+      particles.push({
+        x:px+(Math.random()-0.5)*28, y:py+(Math.random()-0.5)*28,
+        vx:(Math.random()-0.5)*3.5, vy:(Math.random()-0.5)*3.5,
+        r:Math.random()*3+1, alpha:1, hue:Math.random()*80+160
+      });
+    }
+  }
+
+  canvas.addEventListener('mousemove', e=>{
+    const r=canvas.getBoundingClientRect();
+    [pointerX,pointerY]=pointerPos(e,r);
+  });
+  canvas.addEventListener('mouseleave', ()=>{ pointerX=-1; pointerY=-1; });
+  canvas.addEventListener('click',      e=>{ const r=canvas.getBoundingClientRect(); spawnParticles(...pointerPos(e,r)); });
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); const r=canvas.getBoundingClientRect(); spawnParticles(...pointerPos(e,r)); },{passive:false});
+  canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); const r=canvas.getBoundingClientRect(); [pointerX,pointerY]=pointerPos(e,r); },{passive:false});
+  canvas.addEventListener('touchend',   ()=>{ pointerX=-1; pointerY=-1; });
+
+  window.addEventListener('resize', checkResize);
+
+  // ── Main draw loop ──
+  function draw(){
+    checkResize();
+    if(!W){ requestAnimationFrame(draw); return; }
+    t += 0.013;
+
+    // Motion-blur overlay (NOT a full clear — this is intentional for trails)
+    ctx.fillStyle='rgba(0,0,0,0.16)';
+    ctx.fillRect(0,0,W,H);
+
+    // Sporadic background stars
+    if(Math.random()<0.06){
+      const sx=Math.random()*W, sy=Math.random()*H;
+      if(Math.hypot(sx-cx,sy-cy)>130){
+        ctx.beginPath(); ctx.arc(sx,sy,0.5,0,Math.PI*2);
+        ctx.fillStyle=`rgba(210,230,255,${Math.random()*0.35})`; ctx.fill();
+      }
+    }
+
+    // Relativistic jet (vertical plasma beams)
+    const jetLen = 60 + 20*Math.sin(t*0.7);
+    ['rgba(0,180,255,0.18)','rgba(124,58,237,0.12)'].forEach((col,i)=>{
+      const dir = i===0?-1:1;
+      const jg=ctx.createLinearGradient(cx,cy,cx,cy+dir*jetLen);
+      jg.addColorStop(0,col); jg.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.ellipse(cx,cy,8,jetLen,0,0,Math.PI*2);
+      ctx.fillStyle=jg; ctx.fill();
+    });
+
+    // Outer gravitational-lensing glow
+    const og=ctx.createRadialGradient(cx,cy,52,cx,cy,210);
+    og.addColorStop(0,'rgba(255,90,5,0.0)');
+    og.addColorStop(0.45,'rgba(255,70,5,0.09)');
+    og.addColorStop(1,'transparent');
+    ctx.beginPath(); ctx.arc(cx,cy,210,0,Math.PI*2);
+    ctx.fillStyle=og; ctx.fill();
+
+    // ── Advance all disk particles first ──
+    accretion.forEach(p=>{
+      p.angle += p.speed;
+      // Spiral inward very slowly
+      p.radius -= 0.008;
+      // Replenish when too close — teleport back to outer rim
+      if(p.radius < 48){
+        p.angle  = Math.random()*Math.PI*2;
+        p.radius = 100 + Math.random()*55;
+        p.hue    = Math.random()*55+5;
+        p.alpha  = Math.random()*0.65+0.25;
+      }
+    });
+
+    // ── Draw back half (sin<0 means "above" the disk plane visually) ──
+    accretion.filter(p=>Math.sin(p.angle)<0).forEach(p=>{
+      const ax=cx+Math.cos(p.angle)*p.radius;
+      const ay=cy+Math.sin(p.angle)*p.radius*0.27;
+      const bri=38+58*((p.radius-48)/105);
+      ctx.beginPath(); ctx.arc(ax,ay,p.r,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${p.hue},100%,${bri}%,${p.alpha*0.55})`;
+      ctx.fill();
+    });
+
+    // ── Black-hole shadow ──
+    const bhg=ctx.createRadialGradient(cx,cy,0,cx,cy,54);
+    bhg.addColorStop(0,'#000'); bhg.addColorStop(0.88,'#000');
+    bhg.addColorStop(1,'rgba(0,0,0,0.35)');
+    ctx.beginPath(); ctx.arc(cx,cy,54,0,Math.PI*2);
+    ctx.fillStyle=bhg; ctx.fill();
+
+    // Photon ring (three concentric halos)
+    for(let k=0;k<3;k++){
+      ctx.beginPath(); ctx.arc(cx,cy,54+k*2.2,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(255,${155-k*28},${18-k*5},${0.75-k*0.22})`;
+      ctx.lineWidth=1.6-k*0.45; ctx.stroke();
+    }
+
+    // ── Draw front half (sin>=0 means "below" the disk, in front) ──
+    accretion.filter(p=>Math.sin(p.angle)>=0).forEach(p=>{
+      const ax=cx+Math.cos(p.angle)*p.radius;
+      const ay=cy+Math.sin(p.angle)*p.radius*0.27;
+      const bri=50+58*((p.radius-48)/105);
+      ctx.beginPath(); ctx.arc(ax,ay,p.r+0.3,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${p.hue},100%,${bri}%,${p.alpha})`;
+      ctx.fill();
+    });
+
+    // ── Pointer ripple ──
+    if(pointerX>=0){
+      const d=Math.hypot(pointerX-cx,pointerY-cy);
+      const a=Math.max(0,1-d/260)*0.18;
+      ctx.beginPath(); ctx.arc(pointerX,pointerY,7,0,Math.PI*2);
+      ctx.fillStyle=`rgba(0,212,255,${a*5})`; ctx.fill();
+    }
+
+    // ── Infalling matter particles ──
+    particles=particles.filter(p=>{
+      const dx=cx-p.x, dy=cy-p.y;
+      const dist=Math.hypot(dx,dy);
+      if(dist<52||p.alpha<0.04) return false;
+      const f=3200/(dist*dist);
+      p.vx+=(dx/dist)*f*0.016; p.vy+=(dy/dist)*f*0.016;
+      p.x+=p.vx; p.y+=p.vy; p.alpha-=0.0055;
+      const stretch=Math.min(dist/48,3.5);
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(Math.atan2(p.vy,p.vx));
+      ctx.beginPath();
+      ctx.ellipse(0,0,p.r*stretch,p.r*0.45,0,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${p.hue},100%,70%,${p.alpha})`;
+      ctx.fill();
+      ctx.restore();
+      return true;
+    });
+
+    // Hint label
+    ctx.fillStyle='rgba(0,212,255,0.28)';
+    ctx.font=`${Math.max(11,W*0.013)}px Courier New`;
+    ctx.textAlign='center';
+    ctx.fillText('Tap / click to emit matter', cx, H-12);
+    ctx.textAlign='left';
+
+    requestAnimationFrame(draw);
+  }
+
+  checkResize();
+  requestAnimationFrame(draw);
+})();
+
+// ═══════════════════════════════════════════════════════
+// BIG BANG TIMELINE
+// ═══════════════════════════════════════════════════════
+(function(){
+  const milestones=[
+    {time:'Planck Epoch\n~10⁻⁴³ s',color:'#7c3aed',
+     detail:`<h3>The Planck Epoch</h3><p>The universe is born from a singularity of infinite density. All four fundamental forces are unified into a single superforce. Temperature exceeds 10³² K. Space and time themselves emerge. Our current physics cannot describe this moment.</p>`},
+    {time:'Inflation\n10⁻³⁵ s',color:'#4f46e5',
+     detail:`<h3>Cosmic Inflation</h3><p>The universe undergoes exponential expansion, growing by a factor of at least 10²⁶ in a fraction of a second. Inflation smooths the universe nearly flat while tiny quantum fluctuations are stretched to cosmic scales — seeding today's large-scale structure.</p>`},
+    {time:'Quark Soup\n1 μs',color:'#0ea5e9',
+     detail:`<h3>The Quark-Gluon Plasma</h3><p>At 1 microsecond, quarks and gluons combine into protons and neutrons. For every billion antimatter particles, there are a billion-and-one matter particles — this tiny asymmetry is why a matter universe exists today.</p>`},
+    {time:'Nucleosynthesis\n3 min',color:'#00d4ff',
+     detail:`<h3>Big Bang Nucleosynthesis</h3><p>The universe cools enough for the first nuclei to form: ~75% hydrogen and ~25% helium. This ratio is preserved today and matches precisely what we observe in ancient stars — one of the strongest confirmations of the Big Bang model.</p>`},
+    {time:'Recombination\n380,000 yr',color:'#f5c842',
+     detail:`<h3>Recombination & The CMB</h3><p>Electrons combine with nuclei to form neutral atoms for the first time. The universe becomes transparent. The light released at this moment still fills the sky today as the Cosmic Microwave Background — a faint afterglow at just 2.7 K.</p>`},
+    {time:'First Stars\n180 Myr',color:'#ff9944',
+     detail:`<h3>Cosmic Dawn — The First Stars</h3><p>The first stars (Population III) form from pure hydrogen and helium — potentially hundreds of times more massive than the Sun, burning fiercely and dying in supernovae that seed the universe with the first heavy elements.</p>`},
+    {time:'Galaxies\n1 Gyr',color:'#ff6b35',
+     detail:`<h3>The First Galaxies</h3><p>Stars cluster into the first galaxies. Supermassive black holes grow at galactic centers, creating quasars — the brightest objects in the universe. The cosmic web of filaments and voids takes shape.</p>`},
+    {time:'Solar System\n9.2 Gyr',color:'#f5c842',
+     detail:`<h3>Our Solar System Forms</h3><p>A molecular cloud enriched by stellar deaths collapses to form our Sun and solar system 4.6 billion years ago. Earth forms and cools. Within a billion years, life appears and over 3.5 billion years evolves from single cells to the complex biosphere we know today.</p>`},
+    {time:'Now\n13.8 Gyr',color:'#e8edf5',
+     detail:`<h3>The Present Universe</h3><p>The universe is 13.8 billion years old. It contains ~2 trillion galaxies in the observable portion alone. Dark energy is accelerating expansion — distant galaxies are receding faster than light. The universe's fate may be a "Big Freeze" as stars burn out over hundreds of trillions of years.</p>`},
+  ];
+
+  const nodesEl=document.getElementById('timeline-nodes');
+  const detailEl=document.getElementById('timeline-detail');
+
+  milestones.forEach((m,i)=>{
+    const node=document.createElement('div');
+    node.className='t-node';
+    node.innerHTML=`<div class="t-dot" style="background:${m.color};box-shadow:0 0 10px ${m.color}99;"></div>
+                    <div class="t-label">${m.time.replace('\n','<br>')}</div>`;
+    node.addEventListener('click',()=>{
+      detailEl.style.opacity=0;
+      setTimeout(()=>{
+        detailEl.innerHTML=m.detail;
+        detailEl.style.borderColor=m.color+'55';
+        detailEl.style.boxShadow=`0 0 30px ${m.color}22`;
+        detailEl.style.opacity=1;
+      },200);
+    });
+    nodesEl.appendChild(node);
+  });
+
+  detailEl.style.transition='opacity 0.3s, border-color 0.4s, box-shadow 0.4s';
+  detailEl.innerHTML=milestones[0].detail;
+  detailEl.style.borderColor=milestones[0].color+'55';
+})();
+
+// ═══════════════════════════════════════════════════════
+// COSMIC WEB
+// ═══════════════════════════════════════════════════════
+(function(){
+  const canvas=document.getElementById('cosmic-web-canvas');
+  const ctx=canvas.getContext('2d');
+  let nodes=[], t=0, mx2=-1, my2=-1;
+
+  function cwPos(e){
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return [(src.clientX-r.left)*(canvas.width/r.width),(src.clientY-r.top)*(canvas.height/r.height)];
+  }
+  canvas.addEventListener('mousemove',  e=>{ [mx2,my2]=cwPos(e); });
+  canvas.addEventListener('mouseleave', ()=>{ mx2=-1; my2=-1; });
+  canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); [mx2,my2]=cwPos(e); },{passive:false});
+  canvas.addEventListener('touchend',   ()=>{ mx2=-1; my2=-1; });
+
+  function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width; canvas.height=r.height; }
+
+  function init(){
+    resize();
+    const W=canvas.width, H=canvas.height;
+    nodes=Array.from({length:90},()=>({
+      x:Math.random()*W, y:Math.random()*H,
+      r:Math.random()*2+0.3,
+      alpha:Math.random()*0.7+0.2,
+      vx:(Math.random()-0.5)*0.1,
+      vy:(Math.random()-0.5)*0.1,
+      hue: Math.random()<0.7 ? 195 : (Math.random()<0.5?270:40),
+    }));
+  }
+
+  function draw(){
+    resize();
+    const W=canvas.width, H=canvas.height;
+    ctx.clearRect(0,0,W,H);
+    t+=0.004;
+
+    nodes.forEach(n=>{
+      // Cursor repulsion
+      if(mx2>=0){
+        const dx=n.x-mx2, dy=n.y-my2;
+        const d=Math.hypot(dx,dy);
+        if(d<100){ n.vx+=(dx/d)*0.15; n.vy+=(dy/d)*0.15; }
+      }
+      n.vx*=0.995; n.vy*=0.995;
+      n.x+=n.vx; n.y+=n.vy;
+      if(n.x<0||n.x>W) n.vx*=-1;
+      if(n.y<0||n.y>H) n.vy*=-1;
+    });
+
+    // Filaments
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+        const d=Math.hypot(dx,dy);
+        if(d<110){
+          const a=(1-d/110)*0.4;
+          const grad=ctx.createLinearGradient(nodes[i].x,nodes[i].y,nodes[j].x,nodes[j].y);
+          grad.addColorStop(0,`hsla(${nodes[i].hue},100%,70%,${a})`);
+          grad.addColorStop(1,`hsla(${nodes[j].hue},100%,70%,${a})`);
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].x,nodes[i].y);
+          ctx.lineTo(nodes[j].x,nodes[j].y);
+          ctx.strokeStyle=grad; ctx.lineWidth=0.8; ctx.stroke();
+        }
+      }
+    }
+
+    // Galaxy nodes
+    nodes.forEach(n=>{
+      const pulse=1+0.15*Math.sin(t*2+n.x);
+      const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*4*pulse);
+      g.addColorStop(0,`hsla(${n.hue},100%,80%,${n.alpha*0.5})`);
+      g.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r*4*pulse,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${n.hue},80%,95%,${n.alpha})`; ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  init();
+  window.addEventListener('resize',init);
+  requestAnimationFrame(draw);
+})();
+
+// ═══════════════════════════════════════════════════════
+// SCROLL FADE-IN
+// ═══════════════════════════════════════════════════════
+(function(){
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
+  },{threshold:0.08});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+})();
+</script>
+</body>
+</html>
